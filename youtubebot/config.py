@@ -1,0 +1,151 @@
+import os
+from pathlib import Path
+
+
+
+def get_int(name, default):
+    return int(os.getenv(name, default))
+
+
+def get_float(name, default):
+    return float(os.getenv(name, default))
+
+
+class Settings:
+    def __init__(
+        self,
+        project_root,
+        reddit_client_id,
+        reddit_client_secret,
+        reddit_user_agent,
+        edge_tts_voice,
+        edge_tts_rate,
+        edge_tts_volume,
+        edge_tts_pitch,
+        reddit_subreddits,
+        reddit_listing_limit,
+        reddit_selection_pool,
+        reddit_max_age_hours,
+        reddit_min_score,
+        reddit_min_comments,
+        reddit_min_upvote_ratio,
+        reddit_min_words,
+        reddit_max_words,
+        video_width,
+        video_height,
+        video_fps,
+        video_crf,
+        video_preset,
+        video_fade_seconds,
+        music_volume,
+        outro_text,
+        subscribe_text,
+        outro_hold_seconds,
+        subtitle_max_words,
+        subtitle_max_duration,
+        subtitle_font,
+        subtitle_font_size,
+        subtitle_pop_ms,
+    ):
+        self.project_root = project_root
+        self.reddit_client_id = reddit_client_id
+        self.reddit_client_secret = reddit_client_secret
+        self.reddit_user_agent = reddit_user_agent
+        self.edge_tts_voice = edge_tts_voice
+        self.edge_tts_rate = edge_tts_rate
+        self.edge_tts_volume = edge_tts_volume
+        self.edge_tts_pitch = edge_tts_pitch
+        self.reddit_subreddits = reddit_subreddits
+        self.reddit_listing_limit = reddit_listing_limit
+        self.reddit_selection_pool = reddit_selection_pool
+        self.reddit_max_age_hours = reddit_max_age_hours
+        self.reddit_min_score = reddit_min_score
+        self.reddit_min_comments = reddit_min_comments
+        self.reddit_min_upvote_ratio = reddit_min_upvote_ratio
+        self.reddit_min_words = reddit_min_words
+        self.reddit_max_words = reddit_max_words
+        self.video_width = video_width
+        self.video_height = video_height
+        self.video_fps = video_fps
+        self.video_crf = video_crf
+        self.video_preset = video_preset
+        self.video_fade_seconds = video_fade_seconds
+        self.music_volume = music_volume
+        self.outro_text = outro_text
+        self.subscribe_text = subscribe_text
+        self.outro_hold_seconds = outro_hold_seconds
+        self.subtitle_max_words = subtitle_max_words
+        self.subtitle_max_duration = subtitle_max_duration
+        self.subtitle_font = subtitle_font
+        self.subtitle_font_size = subtitle_font_size
+        self.subtitle_pop_ms = subtitle_pop_ms
+        self.reddit_background_dir = project_root / "assets" / "backgrounds" / "reddit"
+        self.music_dir = project_root / "assets" / "music"
+        self.output_dir = project_root / "output"
+        self.state_path = project_root / "data" / "used_reddit_posts.json"
+
+
+def load_settings():
+    from dotenv import load_dotenv
+
+    root = Path.cwd().resolve()
+    load_dotenv(root / ".env", override=True)
+
+    subreddits = []
+    subreddit_text = os.getenv(
+        "REDDIT_SUBREDDITS",
+        "AITAH,AmItheAsshole,TrueOffMyChest,pettyrevenge,MaliciousCompliance",
+    )
+
+    for value in subreddit_text.split(","):
+        value = value.strip()
+        if value.startswith("r/"):
+            value = value[2:]
+        if value:
+            subreddits.append(value)
+
+    missing = []
+    for name in ("REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET", "REDDIT_USER_AGENT"):
+        if not os.getenv(name, "").strip():
+            missing.append(name)
+
+    if missing:
+        raise ValueError("Missing Reddit settings: " + ", ".join(missing))
+
+    return Settings(
+        project_root=root,
+        reddit_client_id=os.getenv("REDDIT_CLIENT_ID").strip(),
+        reddit_client_secret=os.getenv("REDDIT_CLIENT_SECRET").strip(),
+        reddit_user_agent=os.getenv("REDDIT_USER_AGENT").strip(),
+        edge_tts_voice=os.getenv("EDGE_TTS_VOICE", "en-US-GuyNeural").strip(),
+        edge_tts_rate=os.getenv("EDGE_TTS_RATE", "+5%").strip(),
+        edge_tts_volume=os.getenv("EDGE_TTS_VOLUME", "+0%").strip(),
+        edge_tts_pitch=os.getenv("EDGE_TTS_PITCH", "+0Hz").strip(),
+        reddit_subreddits=subreddits,
+        reddit_listing_limit=get_int("REDDIT_LISTING_LIMIT", 60),
+        reddit_selection_pool=max(1, get_int("REDDIT_SELECTION_POOL", 12)),
+        reddit_max_age_hours=get_float("REDDIT_MAX_AGE_HOURS", 48),
+        reddit_min_score=get_int("REDDIT_MIN_SCORE", 500),
+        reddit_min_comments=get_int("REDDIT_MIN_COMMENTS", 40),
+        reddit_min_upvote_ratio=get_float("REDDIT_MIN_UPVOTE_RATIO", 0.85),
+        reddit_min_words=get_int("REDDIT_MIN_WORDS", 120),
+        reddit_max_words=get_int("REDDIT_MAX_WORDS", 450),
+        video_width=get_int("VIDEO_WIDTH", 1080),
+        video_height=get_int("VIDEO_HEIGHT", 1920),
+        video_fps=get_int("VIDEO_FPS", 30),
+        video_crf=get_int("VIDEO_CRF", 20),
+        video_preset=os.getenv("VIDEO_PRESET", "medium").strip(),
+        video_fade_seconds=max(0.1, get_float("VIDEO_FADE_SECONDS", 1.0)),
+        music_volume=max(0.0, get_float("MUSIC_VOLUME", 0.055)),
+        outro_text=os.getenv(
+            "OUTRO_TEXT",
+            "So what do you think? Comment down below!",
+        ).strip(),
+        subscribe_text=os.getenv("SUBSCRIBE_TEXT", "SUBSCRIBE").strip(),
+        outro_hold_seconds=max(0.0, get_float("OUTRO_HOLD_SECONDS", 1.4)),
+        subtitle_max_words=get_int("SUBTITLE_MAX_WORDS", 5),
+        subtitle_max_duration=get_float("SUBTITLE_MAX_DURATION", 2.2),
+        subtitle_font=os.getenv("SUBTITLE_FONT", "Arial").strip(),
+        subtitle_font_size=get_int("SUBTITLE_FONT_SIZE", 72),
+        subtitle_pop_ms=max(0, get_int("SUBTITLE_POP_MS", 140)),
+    )
