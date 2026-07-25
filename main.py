@@ -16,6 +16,11 @@ def main():
         help="Number of videos to create.",
     )
     parser.add_argument(
+        "--tts",
+        choices=["gemini", "chatterbox"],
+        help="Override TTS_PROVIDER from .env for this run.",
+    )
+    parser.add_argument(
         "--upload",
         action="store_true",
         help="Upload each completed video to YouTube.",
@@ -27,6 +32,10 @@ def main():
 
     try:
         settings = load_settings()
+
+        if args.tts:
+            settings.tts_provider = args.tts
+
         video_maker = VIDEO_TYPES[args.video_type](settings)
         uploader = None
 

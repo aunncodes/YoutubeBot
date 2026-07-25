@@ -75,14 +75,15 @@ class FFmpegRenderer(Renderer):
             next_index += 1
 
         if request.title_card_path:
-            command.extend([
-                "-loop",
-                "1",
-                "-i",
-                str(request.title_card_path.resolve()),
-            ])
+            command.extend(
+                [
+                    "-loop",
+                    "1",
+                    "-i",
+                    str(request.title_card_path.resolve()),
+                ]
+            )
             title_card_index = next_index
-            next_index += 1
 
         filters = []
         filters.append(
@@ -96,10 +97,13 @@ class FFmpegRenderer(Renderer):
         current_video = "[base]"
         if title_card_index is not None and request.title_card_end > request.title_card_start:
             filters.append(
-                f"[{title_card_index}:v]format=rgba,fade=t=in:st=0:d=0.15:alpha=1[card]"
+                f"[{title_card_index}:v]format=rgba,"
+                "fade=t=in:st=0:d=0.12:alpha=1,"
+                f"fade=t=out:st={max(0.0, request.title_card_end - request.title_card_start - 0.12):.3f}:"
+                "d=0.12:alpha=1[card]"
             )
             filters.append(
-                f"{current_video}[card]overlay=(W-w)/2:{self.settings.title_card_top}:"
+                f"{current_video}[card]overlay=(W-w)/2:(H-h)/2:"
                 f"enable='between(t,{request.title_card_start:.3f},{request.title_card_end:.3f})'[carded]"
             )
             current_video = "[carded]"

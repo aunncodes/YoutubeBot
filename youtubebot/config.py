@@ -17,6 +17,11 @@ class Settings:
         reddit_client_id,
         reddit_client_secret,
         reddit_user_agent,
+        tts_provider,
+        gemini_api_key,
+        gemini_tts_model,
+        gemini_tts_voice,
+        gemini_tts_style,
         chatterbox_device,
         chatterbox_voice_path,
         chatterbox_exaggeration,
@@ -49,12 +54,16 @@ class Settings:
         subtitle_pop_ms,
         channel_name,
         title_card_hold_seconds,
-        title_card_top,
     ):
         self.project_root = project_root
         self.reddit_client_id = reddit_client_id
         self.reddit_client_secret = reddit_client_secret
         self.reddit_user_agent = reddit_user_agent
+        self.tts_provider = tts_provider
+        self.gemini_api_key = gemini_api_key
+        self.gemini_tts_model = gemini_tts_model
+        self.gemini_tts_voice = gemini_tts_voice
+        self.gemini_tts_style = gemini_tts_style
         self.chatterbox_device = chatterbox_device
         self.chatterbox_voice_path = chatterbox_voice_path
         self.chatterbox_exaggeration = chatterbox_exaggeration
@@ -87,9 +96,9 @@ class Settings:
         self.subtitle_pop_ms = subtitle_pop_ms
         self.channel_name = channel_name
         self.title_card_hold_seconds = title_card_hold_seconds
-        self.title_card_top = title_card_top
         self.reddit_background_dir = project_root / "assets" / "backgrounds" / "reddit"
         self.music_dir = project_root / "assets" / "music"
+        self.icon_dir = project_root / "assets" / "icons"
         self.output_dir = project_root / "output"
         self.state_path = project_root / "data" / "used_reddit_posts.json"
 
@@ -148,6 +157,10 @@ def load_settings():
     if missing:
         raise ValueError("Missing Reddit settings: " + ", ".join(missing))
 
+    tts_provider = os.getenv("TTS_PROVIDER", "gemini").strip().casefold()
+    if tts_provider not in {"gemini", "chatterbox"}:
+        raise ValueError("TTS_PROVIDER must be gemini or chatterbox")
+
     chatterbox_voice_path = normalize_path(
         os.getenv("CHATTERBOX_VOICE_PATH", "").strip(),
         root,
@@ -158,6 +171,20 @@ def load_settings():
         reddit_client_id=os.getenv("REDDIT_CLIENT_ID").strip(),
         reddit_client_secret=os.getenv("REDDIT_CLIENT_SECRET").strip(),
         reddit_user_agent=os.getenv("REDDIT_USER_AGENT").strip(),
+        tts_provider=tts_provider,
+        gemini_api_key=os.getenv("GEMINI_API_KEY", "").strip(),
+        gemini_tts_model=os.getenv(
+            "GEMINI_TTS_MODEL",
+            "gemini-3.1-flash-tts-preview",
+        ).strip(),
+        gemini_tts_voice=os.getenv("GEMINI_TTS_VOICE", "Achird").strip(),
+        gemini_tts_style=os.getenv(
+            "GEMINI_TTS_STYLE",
+            "Read as a natural social-media storyteller. Sound conversational, "
+            "clear, slightly dramatic, and engaged without sounding exaggerated. "
+            "Use a medium-fast pace and natural pauses. Read the transcript exactly "
+            "as written without adding, removing, or rewording anything.",
+        ).strip(),
         chatterbox_device=choose_chatterbox_device(
             os.getenv("CHATTERBOX_DEVICE", "").strip()
         ),
@@ -167,14 +194,14 @@ def load_settings():
         whisper_model=os.getenv("WHISPER_MODEL", "tiny.en").strip(),
         whisper_device=os.getenv("WHISPER_DEVICE", "cpu").strip(),
         reddit_subreddits=subreddits,
-        reddit_listing_limit=get_int("REDDIT_LISTING_LIMIT", 60),
-        reddit_selection_pool=max(1, get_int("REDDIT_SELECTION_POOL", 12)),
-        reddit_max_age_hours=get_float("REDDIT_MAX_AGE_HOURS", 48),
-        reddit_min_score=get_int("REDDIT_MIN_SCORE", 500),
-        reddit_min_comments=get_int("REDDIT_MIN_COMMENTS", 40),
-        reddit_min_upvote_ratio=get_float("REDDIT_MIN_UPVOTE_RATIO", 0.85),
-        reddit_min_words=get_int("REDDIT_MIN_WORDS", 120),
-        reddit_max_words=get_int("REDDIT_MAX_WORDS", 450),
+        reddit_listing_limit=get_int("REDDIT_LISTING_LIMIT", 100),
+        reddit_selection_pool=max(1, get_int("REDDIT_SELECTION_POOL", 20)),
+        reddit_max_age_hours=get_float("REDDIT_MAX_AGE_HOURS", 168),
+        reddit_min_score=get_int("REDDIT_MIN_SCORE", 100),
+        reddit_min_comments=get_int("REDDIT_MIN_COMMENTS", 10),
+        reddit_min_upvote_ratio=get_float("REDDIT_MIN_UPVOTE_RATIO", 0.70),
+        reddit_min_words=get_int("REDDIT_MIN_WORDS", 80),
+        reddit_max_words=get_int("REDDIT_MAX_WORDS", 700),
         video_width=get_int("VIDEO_WIDTH", 1080),
         video_height=get_int("VIDEO_HEIGHT", 1920),
         video_fps=get_int("VIDEO_FPS", 30),
@@ -195,5 +222,4 @@ def load_settings():
         subtitle_pop_ms=max(0, get_int("SUBTITLE_POP_MS", 140)),
         channel_name=os.getenv("CHANNEL_NAME", "@RedditBook").strip(),
         title_card_hold_seconds=max(0.0, get_float("TITLE_CARD_HOLD_SECONDS", 0.15)),
-        title_card_top=get_int("TITLE_CARD_TOP", 30),
     )

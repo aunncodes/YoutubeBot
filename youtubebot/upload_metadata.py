@@ -54,12 +54,17 @@ def make_tags(item):
     ]
 
 
-def make_upload_metadata(item, narration_text, background, music, settings):
-    if settings.chatterbox_voice_path:
-        tts_voice = str(settings.chatterbox_voice_path)
-    else:
-        tts_voice = "chatterbox-default"
+def get_tts_voice(settings):
+    if settings.tts_provider == "gemini":
+        return settings.gemini_tts_voice
 
+    if settings.chatterbox_voice_path:
+        return str(settings.chatterbox_voice_path)
+
+    return "chatterbox-default"
+
+
+def make_upload_metadata(item, narration_text, background, music, settings):
     return {
         "title": make_upload_title(item),
         "description": make_description(item),
@@ -79,5 +84,6 @@ def make_upload_metadata(item, narration_text, background, music, settings):
         "narration_text": narration_text,
         "background": str(background),
         "music": str(music) if music else None,
-        "tts_voice": tts_voice,
+        "tts_provider": settings.tts_provider,
+        "tts_voice": get_tts_voice(settings),
     }

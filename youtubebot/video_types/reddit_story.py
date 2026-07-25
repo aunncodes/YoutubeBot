@@ -5,12 +5,12 @@ import time
 
 from youtubebot.cards.reddit_title_card import RedditTitleCardBuilder
 from youtubebot.models import RenderRequest, VideoResult
-from youtubebot.narration.chatterbox import ChatterboxNarrator
 from youtubebot.rendering.ffmpeg import FFmpegRenderer
 from youtubebot.sources.reddit import RedditStorySource
 from youtubebot.state import UsedContentStore
 from youtubebot.subtitles.ass import AssSubtitleBuilder
-from youtubebot.text import build_reddit_narration
+from youtubebot.text import build_reddit_narration, clean_reddit_text
+from youtubebot.narration_text import expand_reddit_acronyms
 from youtubebot.upload_metadata import make_upload_metadata
 from youtubebot.video_types.base import VideoType
 
@@ -20,12 +20,26 @@ def slug(value, limit=60):
     return value[:limit].rstrip("-") or "reddit-story"
 
 
+def make_narrator(settings):
+    if settings.tts_provider == "gemini":
+        from youtubebot.narration.gemini import GeminiNarrator
+
+        return GeminiNarrator(settings)
+
+    if settings.tts_provider == "chatterbox":
+        from youtubebot.narration.chatterbox import ChatterboxNarrator
+
+        return ChatterboxNarrator(settings)
+
+    raise ValueError(f"Unknown TTS provider: {settings.tts_provider}")
+
+
 class RedditStoryVideo(VideoType):
     def __init__(self, settings):
         self.settings = settings
         self.used_store = UsedContentStore(settings.state_path)
         self.source = RedditStorySource(settings, self.used_store)
-        self.narrator = ChatterboxNarrator(settings)
+        self.narrator = make_narrator(settings)
         self.subtitle_builder = AssSubtitleBuilder(settings)
         self.title_card_builder = RedditTitleCardBuilder(settings)
         self.renderer = FFmpegRenderer(settings)
@@ -34,11 +48,16 @@ class RedditStoryVideo(VideoType):
         item = self.source.fetch()
         self.used_store.add(item.source_id)
 
-        narration_text = build_reddit_narration(
+        original_narration = build_reddit_narration(
             item.title,
             item.body,
             self.settings.outro_text,
         )
+        narration_text = expand_reddit_acronyms(original_narration)
+        spoken_title = expand_reddit_acronyms(
+            clean_reddit_text(item.title).rstrip(".?!")
+        )
+
         run_name = (
             f"{time.strftime('%Y%m%d-%H%M%S')}-"
             f"{item.source_id}-{slug(item.title)}"
@@ -48,7 +67,7 @@ class RedditStoryVideo(VideoType):
         work_dir.mkdir(parents=True)
 
         narration = self.narrator.synthesize(narration_text, work_dir)
-        subtitles = self.subtitle_builder.build(narration, work_dir, item.title)
+        subtitles = self.subtitle_builder.build(narration, work_dir, spoken_title)
         title_card = self.title_card_builder.build(item.title, work_dir)
         background = self.pick_background()
         music = self.pick_music()

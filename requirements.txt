@@ -4,6 +4,7 @@ pillow
 soundfile
 chatterbox-tts
 openai-whisper
+google-genai
 google-api-python-client
 google-auth-oauthlib
 google-auth-httplib2
