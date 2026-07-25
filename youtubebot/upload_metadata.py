@@ -1,51 +1,28 @@
-import re
+def trim_title_to_limit(text, hashtags, limit=100):
+    suffix = " " + " ".join(hashtags)
+    max_text = max(1, limit - len(suffix))
+    text = text.strip()
 
-from youtubebot.text import clean_reddit_text
+    if len(text) > max_text:
+        text = text[: max_text - 1].rstrip()
+        text += "…"
 
-
-TITLE_LIMIT = 100
-
-
-def make_hashtag(value):
-    value = re.sub(r"[^a-zA-Z0-9]", "", value)
-    return f"#{value.lower()}" if value else ""
-
-
-def shorten(value, limit):
-    value = clean_reddit_text(value)
-    if len(value) <= limit:
-        return value
-
-    shortened = value[: max(0, limit - 3)].rstrip()
-    return shortened + "..."
+    return (text + suffix).strip()
 
 
 def make_upload_title(item):
     subreddit = item.metadata.get("subreddit", "reddit")
-    hashtags = [
-        make_hashtag(subreddit),
-        "#redditstories",
-        "#reddit",
-        "#shorts",
-    ]
-    hashtags = [tag for tag in hashtags if tag]
-    suffix = " " + " ".join(hashtags)
-    story_title = shorten(item.title, TITLE_LIMIT - len(suffix))
-    return story_title + suffix
+    title_prefix = item.title.strip()
+    hashtags = ["#redditstories", "#reddit", "#shorts"]
+    return trim_title_to_limit(f"{title_prefix} | r/{subreddit}", hashtags)
 
 
 def make_description(item):
-    subreddit = item.metadata.get("subreddit", "reddit")
-    specific_tag = make_hashtag(subreddit)
     hashtags = [
-        specific_tag,
         "#redditstories",
         "#reddit",
-        "#storytime",
-        "#redditstory",
         "#shorts",
-        "#viral",
-        "#minecraftparkour",
+        "#storytime",
         "#aita",
         "#aitah",
         "#askreddit",
@@ -78,6 +55,11 @@ def make_tags(item):
 
 
 def make_upload_metadata(item, narration_text, background, music, settings):
+    if settings.chatterbox_voice_path:
+        tts_voice = str(settings.chatterbox_voice_path)
+    else:
+        tts_voice = "chatterbox-default"
+
     return {
         "title": make_upload_title(item),
         "description": make_description(item),
@@ -85,6 +67,11 @@ def make_upload_metadata(item, narration_text, background, music, settings):
         "category_id": "24",
         "privacy_status": "private",
         "made_for_kids": False,
+        "contains_synthetic_media": True,
+        "upload_status": "pending",
+        "youtube_video_id": None,
+        "youtube_url": None,
+        "uploaded_at": None,
         "source_url": item.url,
         "source_id": item.source_id,
         "source_author": item.author,
@@ -92,5 +79,5 @@ def make_upload_metadata(item, narration_text, background, music, settings):
         "narration_text": narration_text,
         "background": str(background),
         "music": str(music) if music else None,
-        "tts_voice": settings.edge_tts_voice,
+        "tts_voice": tts_voice,
     }

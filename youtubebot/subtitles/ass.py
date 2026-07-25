@@ -31,28 +31,61 @@ def normalized_word(value):
     return re.sub(r"[^a-z0-9']+", "", value.casefold())
 
 
+def normalized_tokens(text):
+    tokens = []
+    for token in text.split():
+        token = normalized_word(token)
+        if token:
+            tokens.append(token)
+    return tokens
+
+
 class AssSubtitleBuilder:
     def __init__(self, settings):
         self.settings = settings
 
-    def build(self, narration, output_dir):
+    def build(self, narration, output_dir, title_text):
+        title_words, remaining_words = self.split_title_words(narration.words, title_text)
         story_words, outro_words = self.split_outro_words(
-            narration.words,
+            remaining_words,
             self.settings.outro_text,
         )
         captions = self.make_captions(story_words)
         output_dir.mkdir(parents=True, exist_ok=True)
         path = output_dir / "subtitles.ass"
         path.write_text(self.make_document(captions, outro_words), encoding="utf-8")
-        return SubtitleAsset(path)
+
+        title_start = 0.0
+        title_end = 0.0
+        if title_words:
+            title_start = title_words[0].start
+            title_end = title_words[-1].end + self.settings.title_card_hold_seconds
+
+        return SubtitleAsset(path, title_start, title_end)
+
+    def split_title_words(self, words, title_text):
+        expected = normalized_tokens(title_text)
+        if not expected:
+            return [], words
+
+        title_words = []
+        consumed_index = 0
+        matched = 0
+
+        for index, word in enumerate(words):
+            token = normalized_word(word.text)
+            if not token:
+                continue
+            title_words.append(word)
+            consumed_index = index + 1
+            matched += 1
+            if matched >= len(expected):
+                break
+
+        return title_words, words[consumed_index:]
 
     def split_outro_words(self, words, outro_text):
-        expected = []
-        for token in outro_text.split():
-            normalized = normalized_word(token)
-            if normalized:
-                expected.append(normalized)
-
+        expected = normalized_tokens(outro_text)
         actual = [normalized_word(word.text) for word in words]
 
         if not expected or len(actual) < len(expected):

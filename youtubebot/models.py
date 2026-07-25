@@ -24,8 +24,10 @@ class NarrationAsset:
 
 
 class SubtitleAsset:
-    def __init__(self, path):
+    def __init__(self, path, title_start=0.0, title_end=0.0):
         self.path = path
+        self.title_start = title_start
+        self.title_end = title_end
 
 
 class RenderRequest:
@@ -36,12 +38,18 @@ class RenderRequest:
         subtitle_path,
         output_path,
         music_path=None,
+        title_card_path=None,
+        title_card_start=0.0,
+        title_card_end=0.0,
     ):
         self.background_path = background_path
         self.narration_path = narration_path
         self.subtitle_path = subtitle_path
         self.output_path = output_path
         self.music_path = music_path
+        self.title_card_path = title_card_path
+        self.title_card_start = title_card_start
+        self.title_card_end = title_card_end
 
 
 class VideoResult:

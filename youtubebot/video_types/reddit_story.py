@@ -3,8 +3,9 @@ import random
 import re
 import time
 
+from youtubebot.cards.reddit_title_card import RedditTitleCardBuilder
 from youtubebot.models import RenderRequest, VideoResult
-from youtubebot.narration.edge_tts import EdgeTTSNarrator
+from youtubebot.narration.chatterbox import ChatterboxNarrator
 from youtubebot.rendering.ffmpeg import FFmpegRenderer
 from youtubebot.sources.reddit import RedditStorySource
 from youtubebot.state import UsedContentStore
@@ -24,8 +25,9 @@ class RedditStoryVideo(VideoType):
         self.settings = settings
         self.used_store = UsedContentStore(settings.state_path)
         self.source = RedditStorySource(settings, self.used_store)
-        self.narrator = EdgeTTSNarrator(settings)
+        self.narrator = ChatterboxNarrator(settings)
         self.subtitle_builder = AssSubtitleBuilder(settings)
+        self.title_card_builder = RedditTitleCardBuilder(settings)
         self.renderer = FFmpegRenderer(settings)
 
     def create(self):
@@ -46,7 +48,8 @@ class RedditStoryVideo(VideoType):
         work_dir.mkdir(parents=True)
 
         narration = self.narrator.synthesize(narration_text, work_dir)
-        subtitles = self.subtitle_builder.build(narration, work_dir)
+        subtitles = self.subtitle_builder.build(narration, work_dir, item.title)
+        title_card = self.title_card_builder.build(item.title, work_dir)
         background = self.pick_background()
         music = self.pick_music()
         video_path = run_dir / f"{run_name}.mp4"
@@ -68,6 +71,9 @@ class RedditStoryVideo(VideoType):
                 subtitles.path,
                 video_path,
                 music,
+                title_card,
+                subtitles.title_start,
+                subtitles.title_end,
             )
         )
 

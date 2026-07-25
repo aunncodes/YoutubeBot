@@ -1,3 +1,9 @@
-edge-tts>=7.2,<8
-praw>=8.0,<9
-python-dotenv>=1.1,<2
+praw
+python-dotenv
+pillow
+soundfile
+chatterbox-tts
+openai-whisper
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2

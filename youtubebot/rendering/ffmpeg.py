@@ -26,6 +26,14 @@ def audio_duration(path):
     return float(payload["format"]["duration"])
 
 
+def escape_ass_filename(path):
+    value = str(path.name)
+    value = value.replace("\\", r"\\")
+    value = value.replace(":", r"\:")
+    value = value.replace("'", r"\'")
+    return value
+
+
 class FFmpegRenderer(Renderer):
     def __init__(self, settings):
         self.settings = settings
@@ -39,16 +47,6 @@ class FFmpegRenderer(Renderer):
         fade_duration = min(self.settings.video_fade_seconds, total_duration)
         fade_start = max(0.0, total_duration - fade_duration)
 
-        video_filters = (
-            f"[0:v]scale={self.settings.video_width}:{self.settings.video_height}:"
-            "force_original_aspect_ratio=increase,"
-            f"crop={self.settings.video_width}:{self.settings.video_height},"
-            "setsar=1,"
-            f"fps={self.settings.video_fps},"
-            "ass=subtitles.ass,"
-            f"fade=t=out:st={fade_start:.3f}:d={fade_duration:.3f}[v]"
-        )
-
         command = [
             "ffmpeg",
             "-y",
@@ -60,6 +58,10 @@ class FFmpegRenderer(Renderer):
             str(request.narration_path.resolve()),
         ]
 
+        music_index = None
+        title_card_index = None
+        next_index = 2
+
         if request.music_path:
             command.extend(
                 [
@@ -69,18 +71,62 @@ class FFmpegRenderer(Renderer):
                     str(request.music_path.resolve()),
                 ]
             )
-            audio_filters = (
+            music_index = next_index
+            next_index += 1
+
+        if request.title_card_path:
+            command.extend([
+                "-loop",
+                "1",
+                "-i",
+                str(request.title_card_path.resolve()),
+            ])
+            title_card_index = next_index
+            next_index += 1
+
+        filters = []
+        filters.append(
+            f"[0:v]scale={self.settings.video_width}:{self.settings.video_height}:"
+            "force_original_aspect_ratio=increase,"
+            f"crop={self.settings.video_width}:{self.settings.video_height},"
+            "setsar=1,"
+            f"fps={self.settings.video_fps}[base]"
+        )
+
+        current_video = "[base]"
+        if title_card_index is not None and request.title_card_end > request.title_card_start:
+            filters.append(
+                f"[{title_card_index}:v]format=rgba,fade=t=in:st=0:d=0.15:alpha=1[card]"
+            )
+            filters.append(
+                f"{current_video}[card]overlay=(W-w)/2:{self.settings.title_card_top}:"
+                f"enable='between(t,{request.title_card_start:.3f},{request.title_card_end:.3f})'[carded]"
+            )
+            current_video = "[carded]"
+
+        subtitle_name = escape_ass_filename(request.subtitle_path)
+        filters.append(
+            f"{current_video}ass=filename='{subtitle_name}',"
+            f"fade=t=out:st={fade_start:.3f}:d={fade_duration:.3f}[v]"
+        )
+
+        if music_index is not None:
+            filters.append(
                 f"[1:a]apad=pad_dur={self.settings.outro_hold_seconds:.3f},"
-                f"atrim=duration={total_duration:.3f}[narration];"
-                f"[2:a]volume={self.settings.music_volume:.4f},"
+                f"atrim=duration={total_duration:.3f}[narration]"
+            )
+            filters.append(
+                f"[{music_index}:a]volume={self.settings.music_volume:.4f},"
                 f"atrim=duration={total_duration:.3f},"
-                f"afade=t=out:st={fade_start:.3f}:d={fade_duration:.3f}[music];"
+                f"afade=t=out:st={fade_start:.3f}:d={fade_duration:.3f}[music]"
+            )
+            filters.append(
                 "[narration][music]"
                 "amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,"
                 f"atrim=duration={total_duration:.3f}[a]"
             )
         else:
-            audio_filters = (
+            filters.append(
                 f"[1:a]apad=pad_dur={self.settings.outro_hold_seconds:.3f},"
                 f"atrim=duration={total_duration:.3f},"
                 f"afade=t=out:st={fade_start:.3f}:d={fade_duration:.3f}[a]"
@@ -89,7 +135,7 @@ class FFmpegRenderer(Renderer):
         command.extend(
             [
                 "-filter_complex",
-                f"{video_filters};{audio_filters}",
+                ";".join(filters),
                 "-map",
                 "[v]",
                 "-map",
