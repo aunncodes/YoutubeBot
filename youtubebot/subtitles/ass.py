@@ -61,7 +61,22 @@ class AssSubtitleBuilder:
             title_start = title_words[0].start
             title_end = title_words[-1].end + self.settings.title_card_hold_seconds
 
-        return SubtitleAsset(path, title_start, title_end)
+        outro_start = 0.0
+        outro_end = 0.0
+        if outro_words:
+            outro_start = outro_words[0].start
+            outro_end = max(
+                outro_words[-1].end + self.settings.outro_hold_seconds + 0.5,
+                outro_start + 1.0,
+            )
+
+        return SubtitleAsset(
+            path,
+            title_start,
+            title_end,
+            outro_start,
+            outro_end,
+        )
 
     def split_title_words(self, words, title_text):
         expected = normalized_tokens(title_text)
@@ -154,7 +169,6 @@ WrapStyle: 0
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Main,{self.settings.subtitle_font},{self.settings.subtitle_font_size},&H00FFFFFF,&H0000FFFF,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,5,2,5,100,100,100,1
 Style: Outro,{self.settings.subtitle_font},{self.settings.subtitle_font_size + 12},&H00FFFFFF,&H0000FFFF,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,6,2,5,90,90,100,1
-Style: Subscribe,{self.settings.subtitle_font},54,&H00FFFFFF,&H00FFFFFF,&H000000FF,&H000000FF,-1,0,0,0,100,100,2,0,3,18,0,5,80,80,80,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -177,7 +191,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             )
             center_x = self.settings.video_width // 2
             center_y = self.settings.video_height // 2 - 90
-            button_y = self.settings.video_height // 2 + 230
             outro_parts = re.split(r"(?<=[?!])\s+", self.settings.outro_text.upper())
             outro_text = r"\N".join(escape_ass(part) for part in outro_parts)
             outro_pop = self.pop_tags(68)
@@ -187,16 +200,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 f"{ass_time(start)},{ass_time(end)},"
                 "Outro,,0,0,0,,"
                 f"{{\\pos({center_x},{center_y}){outro_pop}}}{outro_text}"
-            )
-
-            button_start = min(start + 0.4, end - 0.1)
-            button_pop = self.pop_tags(55)
-            events.append(
-                "Dialogue: 2,"
-                f"{ass_time(button_start)},{ass_time(end)},"
-                "Subscribe,,0,0,0,,"
-                f"{{\\pos({center_x},{button_y}){button_pop}}}"
-                f"{escape_ass(self.settings.subscribe_text.upper())}"
             )
 
         return header + "\n".join(events) + "\n"

@@ -69,6 +69,9 @@ class RedditStoryVideo(VideoType):
         narration = self.narrator.synthesize(narration_text, work_dir)
         subtitles = self.subtitle_builder.build(narration, work_dir, spoken_title)
         title_card = self.title_card_builder.build(item.title, work_dir)
+        subscribe_button = self.settings.icon_dir / "subscribe-button.png"
+        if not subscribe_button.exists():
+            raise FileNotFoundError(f"Missing subscribe button asset: {subscribe_button}")
         background = self.pick_background()
         music = self.pick_music()
         video_path = run_dir / f"{run_name}.mp4"
@@ -93,6 +96,9 @@ class RedditStoryVideo(VideoType):
                 title_card,
                 subtitles.title_start,
                 subtitles.title_end,
+                subscribe_button,
+                subtitles.outro_start,
+                subtitles.outro_end,
             )
         )
 

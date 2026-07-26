@@ -24,10 +24,19 @@ class NarrationAsset:
 
 
 class SubtitleAsset:
-    def __init__(self, path, title_start=0.0, title_end=0.0):
+    def __init__(
+        self,
+        path,
+        title_start=0.0,
+        title_end=0.0,
+        outro_start=0.0,
+        outro_end=0.0,
+    ):
         self.path = path
         self.title_start = title_start
         self.title_end = title_end
+        self.outro_start = outro_start
+        self.outro_end = outro_end
 
 
 class RenderRequest:
@@ -41,6 +50,9 @@ class RenderRequest:
         title_card_path=None,
         title_card_start=0.0,
         title_card_end=0.0,
+        subscribe_button_path=None,
+        subscribe_button_start=0.0,
+        subscribe_button_end=0.0,
     ):
         self.background_path = background_path
         self.narration_path = narration_path
@@ -50,6 +62,9 @@ class RenderRequest:
         self.title_card_path = title_card_path
         self.title_card_start = title_card_start
         self.title_card_end = title_card_end
+        self.subscribe_button_path = subscribe_button_path
+        self.subscribe_button_start = subscribe_button_start
+        self.subscribe_button_end = subscribe_button_end
 
 
 class VideoResult:

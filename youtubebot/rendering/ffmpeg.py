@@ -60,6 +60,7 @@ class FFmpegRenderer(Renderer):
 
         music_index = None
         title_card_index = None
+        subscribe_button_index = None
         next_index = 2
 
         if request.music_path:
@@ -84,6 +85,18 @@ class FFmpegRenderer(Renderer):
                 ]
             )
             title_card_index = next_index
+            next_index += 1
+
+        if request.subscribe_button_path:
+            command.extend(
+                [
+                    "-loop",
+                    "1",
+                    "-i",
+                    str(request.subscribe_button_path.resolve()),
+                ]
+            )
+            subscribe_button_index = next_index
 
         filters = []
         filters.append(
@@ -109,9 +122,33 @@ class FFmpegRenderer(Renderer):
             current_video = "[carded]"
 
         subtitle_name = escape_ass_filename(request.subtitle_path)
+        filters.append(f"{current_video}ass=filename='{subtitle_name}'[subtitled]")
+        current_video = "[subtitled]"
+
+        subscribe_start = min(
+            max(0.0, request.subscribe_button_start + 0.35),
+            total_duration,
+        )
+        subscribe_end = min(request.subscribe_button_end, total_duration)
+
+        if subscribe_button_index is not None and subscribe_end > subscribe_start:
+            subscribe_duration = subscribe_end - subscribe_start
+            subscribe_fade_out = max(0.0, subscribe_duration - 0.16)
+            filters.append(
+                f"[{subscribe_button_index}:v]format=rgba,"
+                f"trim=duration={subscribe_duration:.3f},"
+                "fade=t=in:st=0:d=0.14:alpha=1,"
+                f"fade=t=out:st={subscribe_fade_out:.3f}:d=0.16:alpha=1,"
+                f"setpts=PTS-STARTPTS+{subscribe_start:.3f}/TB[subscribe]"
+            )
+            filters.append(
+                f"{current_video}[subscribe]overlay=(W-w)/2:(H-h)/2+255:"
+                f"enable='between(t,{subscribe_start:.3f},{subscribe_end:.3f})'[subscribed]"
+            )
+            current_video = "[subscribed]"
+
         filters.append(
-            f"{current_video}ass=filename='{subtitle_name}',"
-            f"fade=t=out:st={fade_start:.3f}:d={fade_duration:.3f}[v]"
+            f"{current_video}fade=t=out:st={fade_start:.3f}:d={fade_duration:.3f}[v]"
         )
 
         if music_index is not None:
