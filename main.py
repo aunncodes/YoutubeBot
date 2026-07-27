@@ -17,7 +17,7 @@ def main():
     )
     parser.add_argument(
         "--tts",
-        choices=["gemini", "chatterbox"],
+        choices=["gemini", "deepgram", "chatterbox"],
         help="Override TTS_PROVIDER from .env for this run.",
     )
     parser.add_argument(

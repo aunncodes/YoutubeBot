@@ -26,6 +26,11 @@ def make_narrator(settings):
 
         return GeminiNarrator(settings)
 
+    if settings.tts_provider == "deepgram":
+        from youtubebot.narration.deepgram import DeepgramNarrator
+
+        return DeepgramNarrator(settings)
+
     if settings.tts_provider == "chatterbox":
         from youtubebot.narration.chatterbox import ChatterboxNarrator
 

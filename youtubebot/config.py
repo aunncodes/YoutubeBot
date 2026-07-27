@@ -29,6 +29,11 @@ class Settings:
         gemini_tts_model,
         gemini_tts_voice,
         gemini_tts_style,
+        deepgram_api_key,
+        deepgram_tts_model,
+        deepgram_tts_speed,
+        deepgram_chunk_chars,
+        deepgram_chunk_pause_ms,
         chatterbox_device,
         chatterbox_voice_path,
         chatterbox_exaggeration,
@@ -85,6 +90,11 @@ class Settings:
         self.gemini_tts_model = gemini_tts_model
         self.gemini_tts_voice = gemini_tts_voice
         self.gemini_tts_style = gemini_tts_style
+        self.deepgram_api_key = deepgram_api_key
+        self.deepgram_tts_model = deepgram_tts_model
+        self.deepgram_tts_speed = deepgram_tts_speed
+        self.deepgram_chunk_chars = deepgram_chunk_chars
+        self.deepgram_chunk_pause_ms = deepgram_chunk_pause_ms
         self.chatterbox_device = chatterbox_device
         self.chatterbox_voice_path = chatterbox_voice_path
         self.chatterbox_exaggeration = chatterbox_exaggeration
@@ -193,8 +203,8 @@ def load_settings():
         raise ValueError("Missing Reddit settings: " + ", ".join(missing))
 
     tts_provider = os.getenv("TTS_PROVIDER", "gemini").strip().casefold()
-    if tts_provider not in {"gemini", "chatterbox"}:
-        raise ValueError("TTS_PROVIDER must be gemini or chatterbox")
+    if tts_provider not in {"gemini", "deepgram", "chatterbox"}:
+        raise ValueError("TTS_PROVIDER must be gemini, deepgram, or chatterbox")
 
     chatterbox_voice_path = normalize_path(
         os.getenv("CHATTERBOX_VOICE_PATH", "").strip(),
@@ -222,6 +232,23 @@ def load_settings():
             "for emphasis. Use only light natural emphasis and short pauses at punctuation. "
             "Read the transcript exactly as written.",
         ).strip(),
+        deepgram_api_key=os.getenv("DEEPGRAM_API_KEY", "").strip(),
+        deepgram_tts_model=os.getenv(
+            "DEEPGRAM_TTS_MODEL",
+            "aura-2-apollo-en",
+        ).strip(),
+        deepgram_tts_speed=min(
+            1.5,
+            max(0.7, get_float("DEEPGRAM_TTS_SPEED", 1.05)),
+        ),
+        deepgram_chunk_chars=min(
+            1950,
+            max(250, get_int("DEEPGRAM_CHUNK_CHARS", 1850)),
+        ),
+        deepgram_chunk_pause_ms=max(
+            0,
+            get_int("DEEPGRAM_CHUNK_PAUSE_MS", 120),
+        ),
         chatterbox_device=choose_chatterbox_device(
             os.getenv("CHATTERBOX_DEVICE", "").strip()
         ),

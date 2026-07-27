@@ -58,6 +58,9 @@ def get_tts_voice(settings):
     if settings.tts_provider == "gemini":
         return settings.gemini_tts_voice
 
+    if settings.tts_provider == "deepgram":
+        return settings.deepgram_tts_model
+
     if settings.chatterbox_voice_path:
         return str(settings.chatterbox_voice_path)
 
