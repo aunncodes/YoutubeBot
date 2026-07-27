@@ -2,10 +2,10 @@ import math
 import random
 import time
 
-
 from youtubebot.models import ContentItem
+from youtubebot.narration_text import expand_reddit_acronyms, estimate_narration_seconds
 from youtubebot.sources.base import ContentSource
-from youtubebot.text import clean_reddit_text, word_count
+from youtubebot.text import build_reddit_narration, clean_reddit_text, word_count
 
 
 class RedditStorySource(ContentSource):
@@ -26,7 +26,8 @@ class RedditStorySource(ContentSource):
         candidates = list(self.discover_candidates())
         if not candidates:
             raise RuntimeError(
-                "No eligible Reddit stories were found. Lower the filters or add more subreddits."
+                "No eligible Reddit stories were found. The posts may be too old, "
+                "too short, already used, or predicted to exceed the video duration limit."
             )
 
         candidates.sort(key=self.momentum_score, reverse=True)
@@ -53,6 +54,19 @@ class RedditStorySource(ContentSource):
                 if self.eligible(submission):
                     yield submission
 
+    def estimated_duration(self, submission):
+        narration = build_reddit_narration(
+            clean_reddit_text(submission.title),
+            clean_reddit_text(submission.selftext or ""),
+            self.settings.outro_text,
+        )
+        narration = expand_reddit_acronyms(narration)
+        return estimate_narration_seconds(
+            narration,
+            self.settings.narration_estimated_wpm,
+            self.settings.outro_hold_seconds,
+        )
+
     def eligible(self, submission):
         body = clean_reddit_text(submission.selftext or "")
         words = word_count(body)
@@ -76,6 +90,15 @@ class RedditStorySource(ContentSource):
             return False
         if submission.upvote_ratio < self.settings.reddit_min_upvote_ratio:
             return False
+
+        estimated_duration = self.estimated_duration(submission)
+        selection_limit = max(
+            1.0,
+            self.settings.video_max_duration - self.settings.video_duration_safety,
+        )
+        if estimated_duration > selection_limit:
+            return False
+
         return True
 
     def weighted_choice(self, candidates):
@@ -112,5 +135,9 @@ class RedditStorySource(ContentSource):
                 "comments": int(submission.num_comments),
                 "upvote_ratio": float(submission.upvote_ratio),
                 "created_utc": float(submission.created_utc),
+                "estimated_duration_seconds": round(
+                    self.estimated_duration(submission),
+                    2,
+                ),
             },
         )

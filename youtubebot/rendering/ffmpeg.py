@@ -40,10 +40,32 @@ class FFmpegRenderer(Renderer):
         require_binary("ffmpeg")
         require_binary("ffprobe")
 
+    def narration_filter(self, total_duration):
+        filters = []
+
+        if self.settings.narration_normalize:
+            filters.append(
+                "loudnorm="
+                f"I={self.settings.narration_loudness}:"
+                f"LRA={self.settings.narration_loudness_range}:"
+                f"TP={self.settings.narration_true_peak}"
+            )
+
+        filters.append(f"apad=pad_dur={self.settings.outro_hold_seconds:.3f}")
+        filters.append(f"atrim=duration={total_duration:.3f}")
+        return ",".join(filters)
+
     def render(self, request):
         request.output_path.parent.mkdir(parents=True, exist_ok=True)
         narration_length = audio_duration(request.narration_path)
         total_duration = narration_length + self.settings.outro_hold_seconds
+
+        if total_duration > self.settings.video_max_duration:
+            raise RuntimeError(
+                f"Generated video would be {total_duration:.1f} seconds, "
+                f"which exceeds the {self.settings.video_max_duration:.1f}-second limit."
+            )
+
         fade_duration = min(self.settings.video_fade_seconds, total_duration)
         fade_start = max(0.0, total_duration - fade_duration)
 
@@ -151,11 +173,10 @@ class FFmpegRenderer(Renderer):
             f"{current_video}fade=t=out:st={fade_start:.3f}:d={fade_duration:.3f}[v]"
         )
 
+        narration_filter = self.narration_filter(total_duration)
+
         if music_index is not None:
-            filters.append(
-                f"[1:a]apad=pad_dur={self.settings.outro_hold_seconds:.3f},"
-                f"atrim=duration={total_duration:.3f}[narration]"
-            )
+            filters.append(f"[1:a]{narration_filter}[narration]")
             filters.append(
                 f"[{music_index}:a]volume={self.settings.music_volume:.4f},"
                 f"atrim=duration={total_duration:.3f},"
@@ -164,13 +185,12 @@ class FFmpegRenderer(Renderer):
             filters.append(
                 "[narration][music]"
                 "amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,"
-                f"atrim=duration={total_duration:.3f}[a]"
+                f"atrim=duration={total_duration:.3f},aresample=48000[a]"
             )
         else:
             filters.append(
-                f"[1:a]apad=pad_dur={self.settings.outro_hold_seconds:.3f},"
-                f"atrim=duration={total_duration:.3f},"
-                f"afade=t=out:st={fade_start:.3f}:d={fade_duration:.3f}[a]"
+                f"[1:a]{narration_filter},"
+                f"afade=t=out:st={fade_start:.3f}:d={fade_duration:.3f},aresample=48000[a]"
             )
 
         command.extend(

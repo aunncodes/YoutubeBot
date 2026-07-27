@@ -10,6 +10,13 @@ def get_float(name, default):
     return float(os.getenv(name, default))
 
 
+def get_bool(name, default):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().casefold() in {"1", "true", "yes", "on"}
+
+
 class Settings:
     def __init__(
         self,
@@ -37,6 +44,9 @@ class Settings:
         reddit_min_upvote_ratio,
         reddit_min_words,
         reddit_max_words,
+        video_max_duration,
+        video_duration_safety,
+        narration_estimated_wpm,
         video_width,
         video_height,
         video_fps,
@@ -44,13 +54,24 @@ class Settings:
         video_preset,
         video_fade_seconds,
         music_volume,
+        narration_normalize,
+        narration_loudness,
+        narration_loudness_range,
+        narration_true_peak,
         outro_text,
         subscribe_text,
         outro_hold_seconds,
-        subtitle_max_words,
         subtitle_max_duration,
+        subtitle_min_duration,
+        subtitle_hard_max_words,
+        subtitle_max_lines,
+        subtitle_target_fill,
+        subtitle_min_fill,
+        subtitle_side_margin,
         subtitle_font,
         subtitle_font_size,
+        subtitle_outline,
+        subtitle_shadow,
         subtitle_pop_ms,
         channel_name,
         title_card_hold_seconds,
@@ -79,6 +100,9 @@ class Settings:
         self.reddit_min_upvote_ratio = reddit_min_upvote_ratio
         self.reddit_min_words = reddit_min_words
         self.reddit_max_words = reddit_max_words
+        self.video_max_duration = video_max_duration
+        self.video_duration_safety = video_duration_safety
+        self.narration_estimated_wpm = narration_estimated_wpm
         self.video_width = video_width
         self.video_height = video_height
         self.video_fps = video_fps
@@ -86,13 +110,24 @@ class Settings:
         self.video_preset = video_preset
         self.video_fade_seconds = video_fade_seconds
         self.music_volume = music_volume
+        self.narration_normalize = narration_normalize
+        self.narration_loudness = narration_loudness
+        self.narration_loudness_range = narration_loudness_range
+        self.narration_true_peak = narration_true_peak
         self.outro_text = outro_text
         self.subscribe_text = subscribe_text
         self.outro_hold_seconds = outro_hold_seconds
-        self.subtitle_max_words = subtitle_max_words
         self.subtitle_max_duration = subtitle_max_duration
+        self.subtitle_min_duration = subtitle_min_duration
+        self.subtitle_hard_max_words = subtitle_hard_max_words
+        self.subtitle_max_lines = subtitle_max_lines
+        self.subtitle_target_fill = subtitle_target_fill
+        self.subtitle_min_fill = subtitle_min_fill
+        self.subtitle_side_margin = subtitle_side_margin
         self.subtitle_font = subtitle_font
         self.subtitle_font_size = subtitle_font_size
+        self.subtitle_outline = subtitle_outline
+        self.subtitle_shadow = subtitle_shadow
         self.subtitle_pop_ms = subtitle_pop_ms
         self.channel_name = channel_name
         self.title_card_hold_seconds = title_card_hold_seconds
@@ -180,10 +215,12 @@ def load_settings():
         gemini_tts_voice=os.getenv("GEMINI_TTS_VOICE", "Achird").strip(),
         gemini_tts_style=os.getenv(
             "GEMINI_TTS_STYLE",
-            "Read as a natural social-media storyteller. Sound conversational, "
-            "clear, slightly dramatic, and engaged without sounding exaggerated. "
-            "Use a medium-fast pace and natural pauses. Read the transcript exactly "
-            "as written without adding, removing, or rewording anything.",
+            "Speak in one consistent, upbeat, confident voice from start to finish. "
+            "Use a clear projected volume, a friendly optimistic tone, and a natural "
+            "medium-fast pace. Keep the delivery steady. Do not whisper, become breathy, "
+            "act out characters, dramatize emotional moments, or change pitch and speed "
+            "for emphasis. Use only light natural emphasis and short pauses at punctuation. "
+            "Read the transcript exactly as written.",
         ).strip(),
         chatterbox_device=choose_chatterbox_device(
             os.getenv("CHATTERBOX_DEVICE", "").strip()
@@ -202,23 +239,37 @@ def load_settings():
         reddit_min_upvote_ratio=get_float("REDDIT_MIN_UPVOTE_RATIO", 0.70),
         reddit_min_words=get_int("REDDIT_MIN_WORDS", 80),
         reddit_max_words=get_int("REDDIT_MAX_WORDS", 700),
+        video_max_duration=max(1.0, get_float("VIDEO_MAX_DURATION", 180.0)),
+        video_duration_safety=max(0.0, get_float("VIDEO_DURATION_SAFETY", 8.0)),
+        narration_estimated_wpm=max(1.0, get_float("NARRATION_ESTIMATED_WPM", 165.0)),
         video_width=get_int("VIDEO_WIDTH", 1080),
         video_height=get_int("VIDEO_HEIGHT", 1920),
         video_fps=get_int("VIDEO_FPS", 30),
         video_crf=get_int("VIDEO_CRF", 20),
         video_preset=os.getenv("VIDEO_PRESET", "medium").strip(),
         video_fade_seconds=max(0.1, get_float("VIDEO_FADE_SECONDS", 1.0)),
-        music_volume=max(0.0, get_float("MUSIC_VOLUME", 0.055)),
+        music_volume=max(0.0, get_float("MUSIC_VOLUME", 0.10)),
+        narration_normalize=get_bool("NARRATION_NORMALIZE", True),
+        narration_loudness=get_float("NARRATION_LOUDNESS", -14.0),
+        narration_loudness_range=max(1.0, get_float("NARRATION_LOUDNESS_RANGE", 5.0)),
+        narration_true_peak=get_float("NARRATION_TRUE_PEAK", -1.5),
         outro_text=os.getenv(
             "OUTRO_TEXT",
             "So what do you think? Comment down below!",
         ).strip(),
         subscribe_text=os.getenv("SUBSCRIBE_TEXT", "SUBSCRIBE").strip(),
         outro_hold_seconds=max(0.0, get_float("OUTRO_HOLD_SECONDS", 1.4)),
-        subtitle_max_words=get_int("SUBTITLE_MAX_WORDS", 5),
-        subtitle_max_duration=get_float("SUBTITLE_MAX_DURATION", 2.2),
-        subtitle_font=os.getenv("SUBTITLE_FONT", "Arial").strip(),
-        subtitle_font_size=get_int("SUBTITLE_FONT_SIZE", 72),
+        subtitle_max_duration=max(0.4, get_float("SUBTITLE_MAX_DURATION", 2.35)),
+        subtitle_min_duration=max(0.0, get_float("SUBTITLE_MIN_DURATION", 0.55)),
+        subtitle_hard_max_words=max(2, get_int("SUBTITLE_HARD_MAX_WORDS", 10)),
+        subtitle_max_lines=max(1, get_int("SUBTITLE_MAX_LINES", 2)),
+        subtitle_target_fill=min(1.0, max(0.1, get_float("SUBTITLE_TARGET_FILL", 0.72))),
+        subtitle_min_fill=min(1.0, max(0.0, get_float("SUBTITLE_MIN_FILL", 0.28))),
+        subtitle_side_margin=max(0, get_int("SUBTITLE_SIDE_MARGIN", 70)),
+        subtitle_font=os.getenv("SUBTITLE_FONT", "Arial Rounded MT Bold").strip(),
+        subtitle_font_size=max(20, get_int("SUBTITLE_FONT_SIZE", 84)),
+        subtitle_outline=max(0, get_int("SUBTITLE_OUTLINE", 6)),
+        subtitle_shadow=max(0, get_int("SUBTITLE_SHADOW", 2)),
         subtitle_pop_ms=max(0, get_int("SUBTITLE_POP_MS", 140)),
         channel_name=os.getenv("CHANNEL_NAME", "@RedditBook").strip(),
         title_card_hold_seconds=max(0.0, get_float("TITLE_CARD_HOLD_SECONDS", 0.15)),

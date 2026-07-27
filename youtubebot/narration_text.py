@@ -35,3 +35,9 @@ def expand_reddit_acronyms(text):
         text = re.sub(pattern, replacement, text, flags=flags)
 
     return text
+
+
+def estimate_narration_seconds(text, words_per_minute, extra_seconds=0.0):
+    words = re.findall(r"\b[\w'-]+\b", text)
+    spoken_seconds = len(words) / max(1.0, words_per_minute) * 60.0
+    return spoken_seconds + max(0.0, extra_seconds)
